@@ -1,0 +1,30 @@
+{
+  "name": "github-dashboard",
+  "version": "0.5.0",
+  "scripts": {
+    "dev": "electrobun dev",
+    "build": "electrobun build",
+    "prepare": "cd .. && husky",
+    "postinstall": "sed -i '' 's/startPort = 50000/startPort = 51000/g' node_modules/electrobun/dist/api/bun/core/Socket.ts node_modules/electrobun/dist-macos-arm64/api/bun/core/Socket.ts 2>/dev/null || true"
+  },
+  "dependencies": {
+    "@mantine/core": "^7.17.0",
+    "@mantine/hooks": "^7.17.0",
+    "d3-chord": "^3.0.1",
+    "d3-path": "^3.1.0",
+    "electrobun": "^1.14.4",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "recharts": "^2.15.0"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.5.0",
+    "@commitlint/config-conventional": "^20.5.0",
+    "@types/d3-chord": "^3.0.6",
+    "@types/d3-path": "^3.1.1",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "husky": "^9.1.7",
+    "typescript": "^5.7.0"
+  }
+}
