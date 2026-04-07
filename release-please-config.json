@@ -1,0 +1,9 @@
+{
+  "packages": {
+    "app": {
+      "release-type": "node",
+      "component": "bragbot",
+      "changelog-path": "CHANGELOG.md"
+    }
+  }
+}
