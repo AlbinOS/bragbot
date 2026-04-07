@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs['app--release_created'] || steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs['app--tag_name'] || steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          manifest-file: .release-please-manifest.json
+          config-file: release-please-config.json
+
+      - name: Debug outputs
+        run: echo '${{ toJSON(steps.release.outputs) }}'
+
+  build:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        working-directory: app
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        working-directory: app
+        run: npx electrobun build --env=stable
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
+          files: |
+            app/artifacts/stable-macos-arm64-BragBot.dmg
+            app/artifacts/stable-macos-arm64-BragBot.app.tar.zst
+            app/artifacts/stable-macos-arm64-update.json
+            app/artifacts/stable-macos-arm64-*.patch
