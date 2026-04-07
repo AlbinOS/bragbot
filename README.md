@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/bragbot_logo_light.png" alt="BragBot" width="200">
+</p>
+
 # BragBot
 
 Your software engineering hype machine — because "I've been busy" isn't a performance review. Crawls your GitHub, Jira & Confluence and turns it into receipts.
