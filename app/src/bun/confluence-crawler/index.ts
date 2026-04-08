@@ -114,6 +114,7 @@ export async function crawlConfluence(
   dataDir: string,
   onLog: (msg: string) => void,
   signal?: AbortSignal,
+  onProgress?: (current: number, total: number) => void,
 ): Promise<ConfluenceData> {
   const expand = "space,history,history.lastUpdated,metadata.labels,ancestors,children.comment,version";
   const config = loadUserConfig();
@@ -122,13 +123,21 @@ export async function crawlConfluence(
 
   // Pages created by user
   const createdCql = `creator = currentUser() AND type = page AND created >= "${opts.since}" AND created <= "${opts.until}" ORDER BY created DESC`;
-  onLog(`Searching created pages: ${createdCql}`);
-  const created = await confluenceCqlSearch(createdCql, expand, (n) => onLog(`Created pages: ${n}`), signal);
-
-  // Blog posts
   const blogCql = `creator = currentUser() AND type = blogpost AND created >= "${opts.since}" AND created <= "${opts.until}" ORDER BY created DESC`;
-  onLog(`Searching blog posts: ${blogCql}`);
-  const blogs = await confluenceCqlSearch(blogCql, expand, (n) => onLog(`Blog posts: ${n}`), signal);
+
+  // Get totals upfront for smooth progress
+  const [createdTotal, blogTotal] = await Promise.all([
+    confluenceCqlCount(createdCql, signal),
+    confluenceCqlCount(blogCql, signal),
+  ]);
+  const grandTotal = createdTotal + blogTotal;
+  let fetched = 0;
+
+  onLog(`Searching created pages (${createdTotal} found)`);
+  const created = await confluenceCqlSearch(createdCql, expand, (n) => { fetched = n; onLog(`Created pages: ${n}/${createdTotal}`); onProgress?.(fetched, grandTotal); }, signal);
+
+  onLog(`Searching blog posts (${blogTotal} found)`);
+  const blogs = await confluenceCqlSearch(blogCql, expand, (n) => { fetched = created.length + n; onLog(`Blog posts: ${n}/${blogTotal}`); onProgress?.(fetched, grandTotal); }, signal);
 
   const pages = [
     ...created.map((r) => parsePage(r, titlePatterns, ancestorPatterns)),
@@ -147,7 +156,7 @@ export async function crawlConfluence(
 
   // Count comments given (instant — uses totalSize, no pagination)
   const commentCql = `creator = currentUser() AND type = comment AND created >= "${opts.since}" AND created <= "${opts.until}"`;
-  const commentsGiven = await confluenceCqlCount(commentCql);
+  const commentsGiven = await confluenceCqlCount(commentCql, signal);
   onLog(`Comments given: ${commentsGiven}`);
 
   const meta: ConfluenceMeta = {

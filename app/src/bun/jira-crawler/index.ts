@@ -54,6 +54,7 @@ export async function crawlJira(
   dataDir: string,
   onLog: (msg: string) => void,
   signal?: AbortSignal,
+  onProgress?: (current: number, total: number) => void,
 ): Promise<JiraData> {
   const jql = `assignee = currentUser() AND updated >= "${opts.since}" AND updated <= "${opts.until}" ORDER BY updated DESC`;
   onLog(`Searching: ${jql}`);
@@ -67,7 +68,7 @@ export async function crawlJira(
     jql,
     fields,
     "changelog",
-    (count) => onLog(`Fetched ${count} issues`),
+    (count, total) => { onLog(`Fetched ${count}${total ? `/${total}` : ""} issues`); onProgress?.(count, total); },
     signal,
   );
 

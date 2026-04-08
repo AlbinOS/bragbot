@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Container, Title, Text, SimpleGrid, Paper, Group, Stack, Button, TextInput, Anchor, Collapse, Center, Loader } from "@mantine/core";
+import { Container, Title, Text, SimpleGrid, Paper, Group, Stack, Button, TextInput, Anchor, Collapse, Center, Loader, Progress } from "@mantine/core";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 import { StatCard, Section, LogPanel } from "../shared/components";
 
@@ -12,7 +12,7 @@ const PieTooltip = ({ active, payload }: any) => {
     </div>
   );
 };
-import { getJiraAuthStatus, saveJiraAuth, jiraLogout, getJiraData, startJiraCrawl, stopJiraCrawl, onJiraCrawlLog, onJiraCrawlDone, detectJiraEnv, loginWithJiraEnv } from "./data";
+import { getJiraAuthStatus, saveJiraAuth, jiraLogout, getJiraData, startJiraCrawl, stopJiraCrawl, onJiraCrawlLog, onJiraCrawlDone, onJiraCrawlProgress, detectJiraEnv, loginWithJiraEnv } from "./data";
 import { computeTotals, computeWeeklyVelocity, computeCycleTimeTrend, computeByType, computeByPriority, computeTimeInStatus, computePointsVsCycleTime, computeDayOfWeek } from "./stats";
 import type { JiraData } from "./types";
 
@@ -39,6 +39,7 @@ export default function JiraDashboard({ filterSince, filterUntil, crawlRequested
   const [crawling, setCrawling] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [logsOpen, setLogsOpen] = useState(false);
+  const [crawlProgress, setCrawlProgress] = useState<{ current: number; total: number } | null>(null);
 
   const listenersRegistered = useRef(false);
 
@@ -59,8 +60,10 @@ export default function JiraDashboard({ filterSince, filterUntil, crawlRequested
     if (listenersRegistered.current) return;
     listenersRegistered.current = true;
     onJiraCrawlLog((msg) => setLogs((l) => [...l, msg]));
+    onJiraCrawlProgress((current, total) => setCrawlProgress({ current, total }));
     onJiraCrawlDone((result) => {
       setCrawling(false);
+      setCrawlProgress(null);
       if (result.success) getJiraData().then((d) => d && setData(d));
       else setLogs((l) => [...l, `Error: ${result.error}`]);
     });
@@ -86,26 +89,31 @@ export default function JiraDashboard({ filterSince, filterUntil, crawlRequested
     onAuthChange?.({ authenticated: false });
   };
 
-  const handleCrawl = async () => {
+  const handleCrawl = async (force = false) => {
     if (crawling) { await stopJiraCrawl(); return; }
-    if (data?.meta && filterSince >= data.meta.since && filterUntil <= data.meta.until) {
+    if (!force && data?.meta && filterSince >= data.meta.since && filterUntil <= data.meta.until) {
       setLogs(["All data already available for this range."]);
       setLogsOpen(true);
+      setCrawlProgress(null);
       return;
     }
     setLogs([]);
     setLogsOpen(true);
     setCrawling(true);
+    setCrawlProgress({ current: 0, total: 0 });
     await startJiraCrawl({ since: filterSince, until: filterUntil });
   };
 
+  const prevCrawlRequested = useRef(crawlRequested);
   useEffect(() => {
-    if (crawlRequested > 0 && authed && !crawling) handleCrawl();
+    if (crawlRequested > 0 && crawlRequested !== prevCrawlRequested.current && authed && !crawling) {
+      const delta = crawlRequested - prevCrawlRequested.current;
+      prevCrawlRequested.current = crawlRequested;
+      handleCrawl(delta >= 1000);
+    }
   }, [crawlRequested]);
 
-  if (!authChecked) {
-    return <Center h="50vh"><Loader size="sm" /></Center>;
-  }
+  if (!authChecked) return null;
 
   if (!authed) {
     return (
@@ -185,7 +193,7 @@ export default function JiraDashboard({ filterSince, filterUntil, crawlRequested
         );
       })()}
 
-      {logs.length > 0 && (
+      {(logs.length > 0 || logsOpen) && (
         <>
           <Group justify="center" mt="sm">
             <Button size="xs" variant="subtle" color="gray" className="hover-gray-outline-blue-text" onClick={() => setLogsOpen((o) => !o)}>
@@ -193,6 +201,12 @@ export default function JiraDashboard({ filterSince, filterUntil, crawlRequested
             </Button>
           </Group>
           <Collapse in={logsOpen}>
+            {crawlProgress && (
+              <Stack gap={4} mt="xs">
+                <Progress value={crawlProgress.total ? (crawlProgress.current / crawlProgress.total) * 100 : 100} size="sm" radius="xl" animated />
+                <Text size="xs" c="dimmed" ta="center">{crawlProgress.total ? `Fetching issues: ${crawlProgress.current}/${crawlProgress.total}` : crawlProgress.current ? `Fetched ${crawlProgress.current} issues` : "Starting..."}</Text>
+              </Stack>
+            )}
             <Paper p="xs" radius="md" withBorder mt="xs">
               <LogPanel logs={logs} />
             </Paper>
@@ -201,7 +215,7 @@ export default function JiraDashboard({ filterSince, filterUntil, crawlRequested
       )}
 
       {filtered.length === 0 && !crawling ? (
-        <Text c="dimmed" ta="center" mt="xl">No Jira data yet. Click Refresh to crawl.</Text>
+        <Text c="dimmed" ta="center" mt="xl">No Jira data yet. Click <Text span fw={700} c="#339af0">Refresh</Text> to crawl.</Text>
       ) : (<>
         <Text c="dimmed" size="sm" ta="center" mt="lg" mb={-8}>
           {isRecent ? `Last ${periodLabel}` : `${periodLabel} (${filterSince} → ${filterUntil})`}

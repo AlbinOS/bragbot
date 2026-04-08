@@ -1,10 +1,35 @@
 import { useState, useEffect, useRef } from "react";
-import { Container, Title, Text, SimpleGrid, Paper, Stack } from "@mantine/core";
+import { Container, Title, Text, SimpleGrid, Paper, Stack, Progress, Group, Collapse, Button } from "@mantine/core";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { StatCard, Section, LogPanel } from "../shared/components";
-import { getConfluenceData, startConfluenceCrawl, stopConfluenceCrawl, onConfluenceCrawlLog, onConfluenceCrawlDone } from "./data";
+import { getConfluenceData, startConfluenceCrawl, stopConfluenceCrawl, onConfluenceCrawlLog, onConfluenceCrawlDone, onConfluenceCrawlProgress } from "./data";
 import { computeConfluenceTotals, computeByCategory, computeMonthlyPages, computeTopSpaces, computeMostDiscussed } from "./stats";
 import type { ConfluenceData } from "./types";
+
+function CrawlLogPanel({ logs, logsOpen, setLogsOpen, crawlProgress }: {
+  logs: string[]; logsOpen: boolean; setLogsOpen: (fn: (o: boolean) => boolean) => void;
+  crawlProgress: { current: number; total: number } | null;
+}) {
+  if (!logs.length && !logsOpen) return null;
+  return <>
+    <Group justify="center" mt="sm">
+      <Button size="xs" variant="subtle" color="gray" className="hover-gray-outline-blue-text" onClick={() => setLogsOpen((o) => !o)}>
+        {logsOpen ? "Hide Logs" : "Show Logs"}
+      </Button>
+    </Group>
+    <Collapse in={logsOpen}>
+      {crawlProgress && (
+        <Stack gap={4} mt="xs">
+          <Progress value={crawlProgress.total ? (crawlProgress.current / crawlProgress.total) * 100 : 100} size="sm" radius="xl" animated />
+          <Text size="xs" c="dimmed" ta="center">{crawlProgress.total ? `Fetching pages: ${crawlProgress.current}/${crawlProgress.total} (${Math.round((crawlProgress.current / crawlProgress.total) * 100)}%)` : "Starting..."}</Text>
+        </Stack>
+      )}
+      <Paper p="xs" radius="md" withBorder mt="xs">
+        <LogPanel logs={logs} />
+      </Paper>
+    </Collapse>
+  </>;
+}
 
 const COLORS = ["#339af0", "#51cf66", "#fcc419", "#ff6b6b", "#cc5de8", "#20c997", "#ff922b"];
 
@@ -29,6 +54,8 @@ export default function ConfluenceDashboard({ filterSince, filterUntil, crawlReq
   const [data, setData] = useState<ConfluenceData | null>(null);
   const [crawling, setCrawling] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
+  const [logsOpen, setLogsOpen] = useState(false);
+  const [crawlProgress, setCrawlProgress] = useState<{ current: number; total: number } | null>(null);
   const listenersRegistered = useRef(false);
 
   useEffect(() => {
@@ -39,8 +66,10 @@ export default function ConfluenceDashboard({ filterSince, filterUntil, crawlReq
     if (listenersRegistered.current) return;
     listenersRegistered.current = true;
     onConfluenceCrawlLog((msg) => setLogs((prev) => [...prev, msg]));
+    onConfluenceCrawlProgress((current, total) => setCrawlProgress({ current, total }));
     onConfluenceCrawlDone((result) => {
       setCrawling(false);
+      setCrawlProgress(null);
       if (result.success) {
         setLogs((prev) => [...prev, "✓ Done"]);
         getConfluenceData().then((d) => d && setData(d));
@@ -52,14 +81,26 @@ export default function ConfluenceDashboard({ filterSince, filterUntil, crawlReq
 
   const handleCrawl = async (force = false) => {
     if (crawling) { await stopConfluenceCrawl(); return; }
-    if (!force && data?.meta && filterSince >= data.meta.since && filterUntil <= data.meta.until) return;
+    if (!force && data?.meta && filterSince >= data.meta.since && filterUntil <= data.meta.until) {
+      setLogs(["All data already available for this range."]);
+      setLogsOpen(true);
+      setCrawlProgress(null);
+      return;
+    }
     setLogs([]);
     setCrawling(true);
+    setLogsOpen(true);
+    setCrawlProgress({ current: 0, total: 0 });
     await startConfluenceCrawl({ since: filterSince, until: filterUntil });
   };
 
+  const prevCrawlRequested = useRef(crawlRequested);
   useEffect(() => {
-    if (crawlRequested > 0 && atlassianAuthed && !crawling) handleCrawl(crawlRequested >= 1000);
+    if (crawlRequested > 0 && crawlRequested !== prevCrawlRequested.current && atlassianAuthed && !crawling) {
+      const delta = crawlRequested - prevCrawlRequested.current;
+      prevCrawlRequested.current = crawlRequested;
+      handleCrawl(delta >= 1000);
+    }
   }, [crawlRequested]);
 
   if (!atlassianAuthed && !data) {
@@ -70,16 +111,16 @@ export default function ConfluenceDashboard({ filterSince, filterUntil, crawlReq
     );
   }
 
-  if (!data) {
+  if (!data && !crawling) {
     return (
-      <Container size="xs" py="xl">
-        <Text c="dimmed" ta="center" mt="xl">No Confluence data yet. Click Refresh to crawl.</Text>
-        {logs.length > 0 && <LogPanel logs={logs} />}
-      </Container>
+      <>
+        <Text c="dimmed" ta="center" mt="xl">No Confluence data yet. Click <Text span fw={700} c="#339af0">Refresh</Text> to crawl.</Text>
+        <CrawlLogPanel logs={logs} logsOpen={logsOpen} setLogsOpen={setLogsOpen} crawlProgress={crawlProgress} />
+      </>
     );
   }
 
-  const pages = data.pages.filter((p) => p.created >= filterSince && p.created <= filterUntil + "T23:59:59Z");
+  const pages = (data?.pages ?? []).filter((p) => p.created >= filterSince && p.created <= filterUntil + "T23:59:59Z");
   const totals = computeConfluenceTotals(pages);
   const byCategory = computeByCategory(pages);
   const monthly = computeMonthlyPages(pages, filterSince, filterUntil);
@@ -87,14 +128,14 @@ export default function ConfluenceDashboard({ filterSince, filterUntil, crawlReq
   const mostDiscussed = computeMostDiscussed(pages);
 
   return (<>
-    {logs.length > 0 && <LogPanel logs={logs} />}
+    <CrawlLogPanel logs={logs} logsOpen={logsOpen} setLogsOpen={setLogsOpen} crawlProgress={crawlProgress} />
 
     <SimpleGrid cols={{ base: 2, md: 5 }} mt="md">
       <StatCard label="Pages Created" value={totals.pages} />
       <StatCard label="Blog Posts" value={totals.blogPosts} />
       <StatCard label="Spaces" value={totals.spaces} />
       <StatCard label="Comments Received" value={totals.totalComments} />
-      <StatCard label="Comments Given" value={data.commentsGiven ?? 0} />
+      <StatCard label="Comments Given" value={data?.commentsGiven ?? 0} />
     </SimpleGrid>
 
     <SimpleGrid cols={{ base: 1, md: 2 }} mt="md">

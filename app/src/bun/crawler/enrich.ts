@@ -56,6 +56,7 @@ export async function buildRepoData(
   onLog: (msg: string) => void,
   signal?: AbortSignal,
   ignoreExtensions = DEFAULT_IGNORE_EXTENSIONS,
+  onPRComplete?: () => void,
 ) {
   const data: any = {
     repo,
@@ -65,10 +66,11 @@ export async function buildRepoData(
     reviewed_prs: [],
   };
 
-  for (const pr of authoredPRs) {
+  for (let i = 0; i < authoredPRs.length; i++) {
+    const pr = authoredPRs[i];
     signal?.throwIfAborted();
     const num = pr.number;
-    onLog(`  Fetching authored PR: ${repo}#${num}`);
+    onLog(`  Enriching authored PR ${i + 1}/${authoredPRs.length}: ${repo}#${num}`);
     const [details, reviews, comments, files] = await Promise.all([
       fetchPRDetails(repo, num, signal),
       fetchReviews(repo, num, signal),
@@ -96,12 +98,14 @@ export async function buildRepoData(
       reviews,
       review_comments: comments,
     });
+    onPRComplete?.();
   }
 
-  for (const pr of reviewedPRs) {
+  for (let i = 0; i < reviewedPRs.length; i++) {
+    const pr = reviewedPRs[i];
     signal?.throwIfAborted();
     const num = pr.number;
-    onLog(`  Fetching reviewed PR: ${repo}#${num}`);
+    onLog(`  Enriching reviewed PR ${i + 1}/${reviewedPRs.length}: ${repo}#${num}`);
     const [reviews, comments] = await Promise.all([
       fetchReviews(repo, num, signal),
       fetchReviewComments(repo, num, signal),
@@ -115,6 +119,7 @@ export async function buildRepoData(
       my_reviews: reviews.filter((r: any) => r.user === user),
       my_review_comments: comments.filter((c: any) => c.user === user),
     });
+    onPRComplete?.();
   }
 
   return data;

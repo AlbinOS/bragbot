@@ -72,6 +72,10 @@ export function onCrawlRepoComplete(cb: (repo: string) => void) {
   getRpc().addMessageListener("crawl:repoComplete", (payload: any) => cb(payload.repo));
 }
 
+export function onCrawlProgress(cb: (current: number, total: number) => void) {
+  getRpc().addMessageListener("crawl:progress", (payload: any) => cb(payload.current, payload.total));
+}
+
 export async function exportAIContext(content: string, filePath?: string): Promise<{ ok: boolean; path: string }> {
   return getRpc().request["data:exportAIContext"]({ content, path: filePath });
 }

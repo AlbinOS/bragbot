@@ -1,5 +1,5 @@
 import path from "node:path";
-import { getToken, apiFetch } from "./github";
+import { getToken, apiFetch, setLogFn } from "./github";
 import { searchAuthoredPRs, searchReviewedPRs, extractRepoFullName } from "./search";
 import { buildRepoData } from "./enrich";
 import { mergeRepoData, loadJson, saveJson } from "./merge";
@@ -14,6 +14,7 @@ export interface CrawlOptions {
   force?: boolean;
   onLog: (msg: string) => void;
   onRepoComplete: (repo: string) => void;
+  onProgress?: (current: number, total: number) => void;
   signal?: AbortSignal;
 }
 
@@ -22,7 +23,7 @@ function fmt(d: Date): string {
 }
 
 export async function crawl(opts: CrawlOptions): Promise<void> {
-  const { org, dataDir, force = false, onLog, onRepoComplete, signal } = opts;
+  const { org, dataDir, force = false, onLog, onRepoComplete, onProgress, signal } = opts;
   const start = Date.now();
 
   await getToken();
@@ -37,6 +38,7 @@ export async function crawl(opts: CrawlOptions): Promise<void> {
   const until = opts.until ?? fmt(new Date());
   const since = opts.since ?? fmt(new Date(Date.now() - (opts.months ?? 6) * 30 * 86400000));
 
+  setLogFn(onLog);
   onLog(`Crawling ${org} for ${user} from ${since} to ${until}`);
 
   // Determine which ranges actually need searching
@@ -79,6 +81,12 @@ export async function crawl(opts: CrawlOptions): Promise<void> {
 
   onLog(`Repos to process: ${repos.size}`);
 
+  // Count total PRs for progress tracking
+  let totalPRs = 0;
+  for (const prs of repos.values()) totalPRs += prs.authored.length + prs.reviewed.length;
+  let processedPRs = 0;
+  onLog(`Total PRs to enrich: ${totalPRs}`);
+
   const outDir = path.join(dataDir, org);
   const existingMeta = loadJson(path.join(outDir, "_meta.json")) ?? {};
 
@@ -94,15 +102,18 @@ export async function crawl(opts: CrawlOptions): Promise<void> {
   };
   saveJson(path.join(outDir, "_meta.json"), meta);
 
+  let repoIdx = 0;
+  const repoTotal = repos.size;
   for (const [repo, prs] of [...repos.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    repoIdx++;
     signal?.throwIfAborted();
     const repoShort = repo.split("/")[1];
     const outFile = path.join(outDir, `${repoShort}.json`);
     const existing = loadJson(outFile);
 
     if (existing && !force) {
-      onLog(`Merging into ${repo} (${prs.authored.length} authored, ${prs.reviewed.length} reviewed)`);
-      const newData = await buildRepoData(repo, prs.authored, prs.reviewed, user!, onLog, signal);
+      onLog(`[${repoIdx}/${repoTotal}] Merging into ${repo} (${prs.authored.length} authored, ${prs.reviewed.length} reviewed)`);
+      const newData = await buildRepoData(repo, prs.authored, prs.reviewed, user!, onLog, signal, undefined, () => { processedPRs++; onProgress?.(processedPRs, totalPRs); });
       const { merged, newAuthored, newReviewed } = mergeRepoData(existing, newData, since, until);
       if (newAuthored === 0 && newReviewed === 0) {
         onLog(`  No new PRs for ${repo}, skipping`);
@@ -111,8 +122,8 @@ export async function crawl(opts: CrawlOptions): Promise<void> {
       saveJson(outFile, merged);
       onLog(`  Merged ${newAuthored} authored + ${newReviewed} reviewed`);
     } else {
-      onLog(`Processing ${repo} (${prs.authored.length} authored, ${prs.reviewed.length} reviewed)`);
-      const data = await buildRepoData(repo, prs.authored, prs.reviewed, user!, onLog, signal);
+      onLog(`[${repoIdx}/${repoTotal}] Processing ${repo} (${prs.authored.length} authored, ${prs.reviewed.length} reviewed)`);
+      const data = await buildRepoData(repo, prs.authored, prs.reviewed, user!, onLog, signal, undefined, () => { processedPRs++; onProgress?.(processedPRs, totalPRs); });
       data.meta = { since, until };
       saveJson(outFile, data);
       onLog(`Saved ${repoShort}.json`);

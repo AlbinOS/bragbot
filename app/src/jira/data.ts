@@ -40,6 +40,10 @@ export function onJiraCrawlLog(cb: (msg: string) => void) {
   getRpc().addMessageListener("jira:crawl:log", (payload: any) => cb(payload.msg));
 }
 
+export function onJiraCrawlProgress(cb: (current: number, total: number) => void) {
+  getRpc().addMessageListener("jira:crawl:progress", (payload: any) => cb(payload.current, payload.total));
+}
+
 export function onJiraCrawlDone(cb: (result: { success: boolean; error?: string }) => void) {
   getRpc().addMessageListener("jira:crawl:done", (result: any) => cb(result));
 }
