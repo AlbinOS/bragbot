@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.5](https://github.com/AlbinOS/bragbot/compare/bragbot-v1.0.4...bragbot-v1.0.5) (2026-04-08)
+
+
+### Bug Fixes
+
+* disable OAuth device flow, default to PAT login ([#14](https://github.com/AlbinOS/bragbot/issues/14)) ([e184dd6](https://github.com/AlbinOS/bragbot/commit/e184dd62f16d575f09ab96ce042d1f682b5f170c))
+
 ## [1.0.4](https://github.com/AlbinOS/bragbot/compare/bragbot-v1.0.3...bragbot-v1.0.4) (2026-04-08)
 
 
