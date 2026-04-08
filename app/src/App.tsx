@@ -685,13 +685,13 @@ Produce:
           </Group>
         </Group>
 
-        <div style={{ display: activeTab === "jira" ? "block" : "none" }}>
+        {activeTab === "jira" && (
           <JiraDashboard filterSince={filterSince} filterUntil={filterUntil} crawlRequested={jiraCrawlRequested} onAuthChange={setJiraAuth} />
-        </div>
-        <div style={{ display: activeTab === "confluence" ? "block" : "none" }}>
+        )}
+        {activeTab === "confluence" && (
           <ConfluenceDashboard filterSince={filterSince} filterUntil={filterUntil} crawlRequested={confluenceCrawlRequested} atlassianAuthed={jiraAuth.authenticated} />
-        </div>
-        <div style={{ display: activeTab === "github" ? "block" : "none" }}>
+        )}
+        {activeTab === "github" && (<>
 
         {(filterSince < meta.since || filterUntil > meta.until) && (() => {
           const missingDays = Math.max(0, Math.floor((new Date(meta.since).getTime() - new Date(filterSince).getTime()) / 86400000))
@@ -1043,7 +1043,7 @@ Produce:
           <Text c="dimmed" size="sm">·</Text>
           <Button size="xs" variant="subtle" color="gray" onClick={handleLogout}>Sign out</Button>
         </Group>
-        </div>
+        </>)}
       </Container>
     </MantineProvider>
   );
