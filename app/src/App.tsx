@@ -140,16 +140,20 @@ export default function App() {
   const [updateVersion, setUpdateVersion] = useState("");
   const [updateStatus, setUpdateStatus] = useState("");
   const [downloading, setDownloading] = useState(false);
+  const [updateCheckMsg, setUpdateCheckMsg] = useState("");
   const [appVersion, setAppVersion] = useState("");
 
   useEffect(() => {
-    getLocalInfo().then((info) => setAppVersion(info.version));
-    checkForUpdate().then((r) => {
+    const doUpdateCheck = () => checkForUpdate().then((r) => {
       if (r?.updateAvailable) {
         setUpdateAvailable(true);
         setUpdateVersion(r.version || "");
       }
     });
+    getLocalInfo().then((info) => setAppVersion(info.version));
+    doUpdateCheck();
+    const interval = setInterval(doUpdateCheck, 60 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -484,7 +488,12 @@ export default function App() {
         <Group justify="space-between" align="baseline">
           <Group gap="md" align="baseline">
             <Title order={1}>BragBot</Title>
-            {appVersion && <Text size="xs" c="dimmed">v{appVersion}</Text>}
+            {appVersion && <MTooltip label="Check for updates" position="bottom" withArrow><Text size="xs" c={updateCheckMsg ? "green" : "dimmed"} style={{ cursor: "pointer" }} onClick={() => {
+              checkForUpdate().then((r) => {
+                if (r?.updateAvailable) { setUpdateAvailable(true); setUpdateVersion(r.version || ""); }
+                else { setUpdateCheckMsg("✓"); setTimeout(() => setUpdateCheckMsg(""), 3000); }
+              });
+            }}>v{appVersion} {updateCheckMsg}</Text></MTooltip>}
             <Group gap={4}>
               <Button size="xs" variant={activeTab === "github" ? "light" : "subtle"} color={activeTab === "github" ? "blue" : "gray"} onClick={() => setActiveTab("github")}>GitHub</Button>
               <Button size="xs" variant={activeTab === "jira" ? "light" : "subtle"} color={activeTab === "jira" ? "blue" : "gray"} onClick={() => setActiveTab("jira")}>Jira</Button>
