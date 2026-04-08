@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/AlbinOS/bragbot/compare/bragbot-v1.0.2...bragbot-v1.0.3) (2026-04-08)
+
+
+### Features
+
+* show version and download progress in update banner ([#9](https://github.com/AlbinOS/bragbot/issues/9)) ([7909ba5](https://github.com/AlbinOS/bragbot/commit/7909ba59ae50b1e8da997443d5cc1e7ccd694e15))
+
 ## [1.0.2](https://github.com/AlbinOS/bragbot/compare/bragbot-v1.0.1...bragbot-v1.0.2) (2026-04-08)
 
 
