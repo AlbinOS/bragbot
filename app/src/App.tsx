@@ -38,7 +38,7 @@ import {
   Line,
 } from "recharts";
 import type { Meta, RepoData } from "./types";
-import { loadMeta, loadAllRepos, startCrawl, stopCrawl, getCrawlStatus, onCrawlLog, onCrawlRepoComplete, onCrawlDone, getAuthStatus, startDeviceFlow, onAuthComplete, onAuthExpired, logout, loginWithPat, getOrgs, detectGhCli, loginWithGhCli, exportAIContext, getContextFiles, checkForUpdate, downloadUpdate, applyUpdate, getLocalInfo, writeClipboard, getReviewSignatures } from "./data";
+import { loadMeta, loadAllRepos, startCrawl, stopCrawl, getCrawlStatus, onCrawlLog, onCrawlRepoComplete, onCrawlDone, getAuthStatus, startDeviceFlow, onAuthComplete, onAuthExpired, logout, loginWithPat, getOrgs, detectGhCli, loginWithGhCli, exportAIContext, getContextFiles, checkForUpdate, downloadUpdate, applyUpdate, getLocalInfo, writeClipboard, getReviewSignatures, onUpdaterStatus } from "./data";
 
 // Mantine 7.x CSS — loaded by electrobun bundler
 import "@mantine/core/styles.css";
@@ -137,12 +137,18 @@ export default function App() {
 
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [updateReady, setUpdateReady] = useState(false);
+  const [updateVersion, setUpdateVersion] = useState("");
+  const [updateStatus, setUpdateStatus] = useState("");
+  const [downloading, setDownloading] = useState(false);
   const [appVersion, setAppVersion] = useState("");
 
   useEffect(() => {
     getLocalInfo().then((info) => setAppVersion(info.version));
     checkForUpdate().then((r) => {
-      if (r?.updateAvailable) setUpdateAvailable(true);
+      if (r?.updateAvailable) {
+        setUpdateAvailable(true);
+        setUpdateVersion(r.version || "");
+      }
     });
   }, []);
 
@@ -448,13 +454,26 @@ export default function App() {
         {updateAvailable && (
           <Paper p="xs" radius="md" withBorder mb="md" style={{ borderColor: "#339af0" }}>
             <Group justify="space-between">
-              <Text size="sm">A new version of BragBot is available!</Text>
-              <Button size="xs" variant="filled" color="blue" className="hover-outline" onClick={async () => {
+              <div>
+                <Text size="sm">A new version of BragBot is available!{updateVersion && ` (v${updateVersion})`}</Text>
+                {updateStatus && <Text size="xs" c="dimmed">{updateStatus}</Text>}
+              </div>
+              <Button size="xs" variant="filled" color="blue" className="hover-outline" loading={downloading} onClick={async () => {
                 if (updateReady) {
                   await applyUpdate();
                 } else {
+                  setDownloading(true);
+                  onUpdaterStatus((entry: any) => {
+                    const pct = entry.details?.progress;
+                    if (entry.status === "download-complete" || entry.status === "complete") {
+                      setDownloading(false);
+                      setUpdateStatus("");
+                      setUpdateReady(true);
+                    } else {
+                      setUpdateStatus(pct != null ? `Downloading... ${Math.round(pct)}%` : entry.message);
+                    }
+                  });
                   await downloadUpdate();
-                  setUpdateReady(true);
                 }
               }}>
                 {updateReady ? "Restart to Update" : "Download Update"}

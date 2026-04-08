@@ -89,6 +89,9 @@ export async function checkForUpdate(): Promise<any> {
 export async function downloadUpdate(): Promise<any> {
   return getRpc().request["updater:download"]({});
 }
+export function onUpdaterStatus(cb: (entry: any) => void) {
+  return getRpc().addMessageListener("updater:status", cb);
+}
 export async function applyUpdate(): Promise<any> {
   return getRpc().request["updater:apply"]({});
 }
