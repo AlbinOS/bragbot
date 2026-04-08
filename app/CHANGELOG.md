@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.0](https://github.com/AlbinOS/bragbot/compare/bragbot-v1.0.5...bragbot-v1.1.0) (2026-04-08)
+
+
+### Features
+
+* include Confluence data in brag prompt with initiative linking and page collapsing ([#19](https://github.com/AlbinOS/bragbot/issues/19)) ([ba29341](https://github.com/AlbinOS/bragbot/commit/ba293419e37e530d1d8d3fc97181391ee509b607))
+
+
+### Bug Fixes
+
+* detect gh CLI on logout and show loader while checking Jira auth ([#18](https://github.com/AlbinOS/bragbot/issues/18)) ([a604d37](https://github.com/AlbinOS/bragbot/commit/a604d37ea18274979f985957d48499b8ab32ae01))
+* lazy render tabs to avoid Recharts re-layout on tab switch ([#16](https://github.com/AlbinOS/bragbot/issues/16)) ([8142c43](https://github.com/AlbinOS/bragbot/commit/8142c43040e3463b2c131dbf1fe54bcfc68b0a62))
+
 ## [1.0.5](https://github.com/AlbinOS/bragbot/compare/bragbot-v1.0.4...bragbot-v1.0.5) (2026-04-08)
 
 
