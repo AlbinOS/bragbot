@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Container, Title, Text, SimpleGrid, Paper, Group, Stack, Button, TextInput, Anchor, Collapse } from "@mantine/core";
+import { Container, Title, Text, SimpleGrid, Paper, Group, Stack, Button, TextInput, Anchor, Collapse, Center, Loader } from "@mantine/core";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 import { StatCard, Section, LogPanel } from "../shared/components";
 
@@ -103,7 +103,11 @@ export default function JiraDashboard({ filterSince, filterUntil, crawlRequested
     if (crawlRequested > 0 && authed && !crawling) handleCrawl();
   }, [crawlRequested]);
 
-  if (authChecked && !authed) {
+  if (!authChecked) {
+    return <Center h="50vh"><Loader size="sm" /></Center>;
+  }
+
+  if (!authed) {
     return (
       <Container size="xs" py="xl">
         <Stack gap="md" mt="xl">

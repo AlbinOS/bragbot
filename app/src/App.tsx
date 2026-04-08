@@ -247,6 +247,7 @@ export default function App() {
     setAuthUser("");
     setMeta(null);
     setRepos([]);
+    detectGhCli().then(setGhCli);
   };
 
   if (loading && authed === null) {
