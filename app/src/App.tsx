@@ -330,12 +330,14 @@ export default function App() {
               </Paper>
             ) : (
               <Stack align="center" gap="sm">
-                <Button size="lg" onClick={handleLogin}>Sign in with GitHub</Button>
-                <Button variant="subtle" color="gray" size="sm" onClick={() => setShowPat(true)}>Use a Personal Access Token</Button>
+                {/* OAuth device flow disabled for now — keeping code for future use */}
+                {/* <Button size="lg" onClick={handleLogin}>Sign in with GitHub</Button> */}
+                <Button size="lg" className="hover-outline" onClick={() => setShowPat(true)}>Sign in with a Personal Access Token</Button>
                 {ghCli && (
                   <Button
                     variant="subtle"
                     color={ghCli.available ? "green" : "gray"}
+                    className="hover-gray-outline-green-text"
                     size="sm"
                     disabled={!ghCli.available}
                     onClick={async () => {
@@ -348,7 +350,7 @@ export default function App() {
                       }
                     }}
                   >
-                    {ghCli.available ? `Use GitHub CLI (${ghCli.user})` : `GitHub CLI: ${ghCli.reason}`}
+                    {ghCli.available ? `Use existing gh login (${ghCli.user})` : `GitHub CLI: ${ghCli.reason}`}
                   </Button>
                 )}
               </Stack>
