@@ -1,15 +1,53 @@
 # TODO
 
-## Feedback Received Breakdown
+## Peer Recognition Export
 
-Parse conventional comment tags from comments **received** on authored PRs (`review_comments` on authored PRs) to build an inbound feedback profile:
+Add a `peer-recognition.json` file to the export bundle containing praise comments given and received, for the LLM to curate into a brag sheet.
 
-- `praise_received` count — how often reviewers praised your code
-- `question_received`, `suggestion_received`, `issue_received`, `nit_received` counts
-- **Top praises** — surface the best praise comments received. Ranking ideas:
-  - Longest praise comment (more effort = more meaningful)
-  - Praise from senior/frequent reviewers (weighted by reviewer seniority)
-  - Praise with emoji (🐐, 🔥, 🚀) as a signal of enthusiasm
-  - Praise on large/complex PRs (more impressive context)
-- Dashboard chart: "Praise Wall" or "Best Compliments" — show top 5-10 praise quotes with reviewer name and PR link
-- Dashboard chart: inbound feedback tag breakdown (mirror of the outbound one)
+### Data structure
+
+```json
+{
+  "inbound": [
+    {
+      "repo": "org/repo",
+      "pr_number": 42,
+      "pr_title": "Refactor auth module",
+      "pr_url": "https://github.com/...",
+      "reviewer": "alice",
+      "comment_body": "praise: This is incredibly clean...",
+      "tag": "praise",
+      "timestamp": "2026-03-15T..."
+    }
+  ],
+  "outbound": [...]
+}
+```
+
+### Filtering (before export)
+
+- Only merged PRs
+- Only `praise:` tagged comments (via existing `TAG_RE`)
+- Exclude bot authors
+- Exclude very short bodies (< 20 chars after tag)
+- Dedupe per PR thread (keep longest)
+
+### Up-rank signals (metadata for the model)
+
+- Praise that mentions *why* something was good
+- Praise on high-complexity PRs (additions + deletions)
+- Praise from multiple reviewers on same workstream
+
+### Prompt guidance (in bundle README)
+
+> Use `peer-recognition.json` as third-party recognition evidence.
+> Select up to 3–5 inbound quotes that best reinforce impact, technical judgment,
+> collaboration, or maintainability. Prefer quotes with concrete context over short
+> reactions. Optionally include 1–2 light/funny quotes in an appendix if they add
+> personality without weakening professionalism.
+
+### Files to change
+
+- `app/src/enrichExport.ts` — add `extractPraiseComments(repos, user)` with filtering
+- `app/src/App.tsx` — add `exportAIContext(JSON.stringify(praise, null, 2), ...peer-recognition.json)` alongside other exports
+- `app/src/App.tsx` — update bundle README table with `peer-recognition.json` entry

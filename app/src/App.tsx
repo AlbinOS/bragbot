@@ -64,6 +64,7 @@ import {
 } from "./stats";
 
 import { generateAIContext } from "./exportAIContext";
+import { extractPraiseComments } from "./enrichExport";
 import { SizeVsMergeChart } from "./SizeVsMergeChart";
 import JiraDashboard from "./jira/JiraDashboard";
 import ConfluenceDashboard from "./confluence/ConfluenceDashboard";
@@ -552,20 +553,18 @@ export default function App() {
             <MTooltip label="Generate metrics from crawled data and copy a brag-sheet prompt to clipboard" position="bottom" withArrow>
               <Button size="xs" variant="subtle" color={copyFeedback ? "green" : "gray"} className="hover-gray-outline-blue-text" onClick={async () => {
                 const jiraData = await loadJiraData();
-                const needsGithub = !hasData;
-                const needsJira = !jiraData && jiraAuth;
-                if (needsGithub || needsJira) {
-                  const parts = [needsGithub && "GitHub", needsJira && "Jira"].filter(Boolean);
-                  setLogs([`No ${parts.join(" or ")} data yet — starting crawl. Click Export again when done.`]);
+                if (!hasData) {
+                  setLogs([`No GitHub data yet — starting crawl. Click Export again when done.`]);
                   setLogsOpen(true);
-                  if (needsGithub) handleCrawl(false);
-                  if (needsJira) setJiraCrawlRequested((n) => n + 1);
+                  handleCrawl(false);
                   return;
                 }
                 const { markdown, metrics, initiatives, notable_singletons, role_alignment } = generateAIContext(meta.user, org, filterSince, filterUntil, filteredRepos, jiraData);
                 const result = await exportAIContext(markdown);
                 await exportAIContext(JSON.stringify(metrics, null, 2), result.path.replace("ai-context.md", "derived-metrics.json"));
                 await exportAIContext(JSON.stringify({ initiatives, notable_singletons, role_alignment }, null, 2), result.path.replace("ai-context.md", "initiatives.json"));
+                const praise = extractPraiseComments(filteredRepos, meta.user);
+                await exportAIContext(JSON.stringify(praise, null, 2), result.path.replace("ai-context.md", "peer-recognition.json"));
 
                 // Create context dir with README on first export
                 const contextDir = result.path.replace("/ai-context.md", "/context");
@@ -606,6 +605,7 @@ Example entries:
 |------|-------------|
 | \`derived-metrics.json\` | Pre-computed metrics (authoritative numbers) |
 | \`initiatives.json\` | Initiative clusters, notable singletons, and role alignment |
+| \`peer-recognition.json\` | Praise comments given and received, filtered for quality |
 | \`ai-context.md\` | Full PR/Jira evidence with derived metrics summary |
 
 ## Context (optional, user-provided)
@@ -618,6 +618,10 @@ Example entries:
 | \`context/notes.md\` | Impact notes the data can't show (outcomes, business context) |
 
 See \`context/README.md\` for details on what to put in each file.
+
+## Peer Recognition
+
+Use \`peer-recognition.json\` as third-party recognition evidence. Select up to 3–5 inbound quotes that best reinforce impact, technical judgment, collaboration, or maintainability. Prefer quotes with concrete context over short reactions. Optionally include 1–2 light/funny quotes in an appendix if they add personality without weakening professionalism.
 
 ## Usage
 
@@ -636,12 +640,15 @@ Paste the prompt from the app's "Export for AI" button into your AI tool, or poi
                   if (ctx.found.includes("notes.md")) contextLines.push(`- Read ${ctx.dir}/notes.md for outcome/impact context the data can't show.`);
                   if (ctx.found.length === 0) contextLines.push(`- No context files found. Optionally add role.md, goals.md, or notes.md to ${ctx.dir}/ (see README.md there).`);
 
+                  const praiseePath = result.path.replace("ai-context.md", "peer-recognition.json");
+
                   const prompt = `You are helping a Senior Software Engineer prepare an evidence-based brag sheet.
 
 Primary sources (read in this order):
 1. ${metricsPath} — pre-computed metrics, quote from here
 2. ${initiativesPath} — initiatives, notable singletons, and auto-detected role alignment
 3. ${result.path} — full PR/Jira evidence
+4. ${praiseePath} — peer recognition (praise given and received), use as third-party evidence
 
 Rules:
 - Treat derived metrics as authoritative; do not re-derive from raw data.
@@ -654,6 +661,7 @@ Rules:
 - Do not say "led", "owned", "zero incidents", "reduced", "improved", or "mentored" unless directly supported by evidence or explicitly marked as inference.
 - Do not use open or draft PRs as evidence of delivery — only merged PRs count as shipped.
 - Every accomplishment bullet must cite supporting initiative IDs or PR numbers.
+- Use peer-recognition.json as third-party evidence: select up to 3-5 inbound quotes that reinforce impact, judgment, or collaboration. Optionally include 1-2 light quotes in an appendix.
 ${contextLines.join("\n")}
 
 Produce:
@@ -904,7 +912,15 @@ Produce:
               </Paper>
               {receivedTags.length > 0 && (
                 <Paper p="md" radius="md" withBorder>
-                  <Text size="xs" c="dimmed" mb="sm">Conventional Comments (Received)</Text>
+                  <Group justify="space-between" mb="sm">
+                    <Text size="xs" c="dimmed">Conventional Comments (Received)</Text>
+                    <MTooltip label="Copy a prompt to ask your AI for top praise highlights" position="bottom" withArrow>
+                      <Button size="compact-xs" variant="subtle" color="gray" className="hover-gray-outline-blue-text" onClick={async () => {
+                        const p = `Read ~/Library/Application Support/BragBot/data/peer-recognition.json and pick the top 5 most meaningful praise comments I received (inbound). For each, quote the comment and explain why it matters. Add 1-2 funny ones if any.`;
+                        await writeClipboard(p);
+                      }}>📋 Praise prompt</Button>
+                    </MTooltip>
+                  </Group>
                   <ResponsiveContainer width="100%" height={Math.max(200, receivedTags.length * 32)}>
                     <BarChart data={receivedTags} layout="vertical" margin={{ left: 70 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#444" horizontal={false} />

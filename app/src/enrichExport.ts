@@ -1,4 +1,4 @@
-import type { AuthoredPR, ReviewedPR, RepoData } from "./types";
+import type { AuthoredPR, ReviewedPR, RepoData, ReviewComment } from "./types";
 import type { JiraData } from "./jira/types";
 import { computeMergeTime, computeReviewStyle, computeReviewTurnaround, computeTopReviewers, computeRepoSummaries, computeMergeTimeTrend, computeReviewCommentTags } from "./stats";
 
@@ -201,4 +201,52 @@ export function computeDerivedMetrics(
     merge_time_trend: mergeTimeTrend,
     review_turnaround_trend: reviewTurnaround,
   };
+}
+
+// ── Peer Recognition ──
+
+const PRAISE_RE = /^\*{0,2}praise(?:\(.*?\))?:\*{0,2}\s*/im;
+const BOT_RE = /\[bot\]$|^dependabot|^renovate|^github-actions/i;
+
+export interface PraiseComment {
+  repo: string;
+  pr_number: number;
+  pr_title: string;
+  pr_url: string;
+  author: string;
+  reviewer: string;
+  comment_body: string;
+  timestamp: string;
+  pr_complexity: number;
+}
+
+function extractPraise(comments: ReviewComment[], repo: string, pr: { number: number; title: string; html_url: string; merged: boolean; additions?: number; deletions?: number }, author: string, reviewer: (c: ReviewComment) => string): PraiseComment[] {
+  if (!pr.merged) return [];
+  const complexity = (pr.additions ?? 0) + (pr.deletions ?? 0);
+  const results: PraiseComment[] = [];
+  for (const c of comments) {
+    if (!c.body || !PRAISE_RE.test(c.body)) continue;
+    const who = reviewer(c);
+    if (!who || BOT_RE.test(who)) continue;
+    const body = c.body.replace(PRAISE_RE, "").trim();
+    if (!body) continue;
+    results.push({ repo, pr_number: pr.number, pr_title: pr.title, pr_url: pr.html_url, author, reviewer: who, comment_body: body, timestamp: c.created_at ?? "", pr_complexity: complexity });
+  }
+  return results;
+}
+
+export function extractPraiseComments(repos: RepoData[], user: string): { inbound: PraiseComment[]; outbound: PraiseComment[] } {
+  const inbound: PraiseComment[] = [];
+  const outbound: PraiseComment[] = [];
+  for (const r of repos) {
+    for (const pr of r.authored_prs) {
+      inbound.push(...extractPraise(pr.review_comments, r.repo, pr, user, (c) => c.user ?? ""));
+    }
+    for (const pr of r.reviewed_prs) {
+      outbound.push(...extractPraise(pr.my_review_comments, r.repo, { ...pr, merged: true, html_url: pr.html_url }, pr.author, () => user));
+    }
+  }
+  inbound.sort((a, b) => b.pr_complexity - a.pr_complexity);
+  outbound.sort((a, b) => b.pr_complexity - a.pr_complexity);
+  return { inbound, outbound };
 }
