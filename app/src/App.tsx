@@ -552,14 +552,10 @@ export default function App() {
             <MTooltip label="Generate metrics from crawled data and copy a brag-sheet prompt to clipboard" position="bottom" withArrow>
               <Button size="xs" variant="subtle" color={copyFeedback ? "green" : "gray"} className="hover-gray-outline-blue-text" onClick={async () => {
                 const jiraData = await loadJiraData();
-                const needsGithub = !hasData;
-                const needsJira = !jiraData && jiraAuth;
-                if (needsGithub || needsJira) {
-                  const parts = [needsGithub && "GitHub", needsJira && "Jira"].filter(Boolean);
-                  setLogs([`No ${parts.join(" or ")} data yet — starting crawl. Click Export again when done.`]);
+                if (!hasData) {
+                  setLogs([`No GitHub data yet — starting crawl. Click Export again when done.`]);
                   setLogsOpen(true);
-                  if (needsGithub) handleCrawl(false);
-                  if (needsJira) setJiraCrawlRequested((n) => n + 1);
+                  handleCrawl(false);
                   return;
                 }
                 const { markdown, metrics, initiatives, notable_singletons, role_alignment } = generateAIContext(meta.user, org, filterSince, filterUntil, filteredRepos, jiraData);
