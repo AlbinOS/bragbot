@@ -6,6 +6,9 @@
 
 Your software engineering hype machine — because "I've been busy" isn't a performance review. Crawls your GitHub, Jira & Confluence and turns it into receipts.
 
+> [!NOTE]
+> This entire app was 100% vibe coded. Every line of code, every component, every crawl pipeline — all generated through AI-assisted development. No hand-written code.
+
 Built with [Electrobun](https://electrobun.dev) + React + Recharts.
 
 ## What it does
@@ -81,7 +84,7 @@ The export writes these files to `~/Library/Application Support/BragBot/data/`:
 | `ai-context.md`           | Full PR/Jira evidence with derived metrics summary          |
 | `confluence-derived.json` | Confluence threads with linked initiatives and role signals |
 
-Paste the prompt into ChatGPT, Claude, or any AI tool. It will read the exported files and produce:
+Paste the prompt into ChatGPT, Claude, or any AI tool. The agent will read the exported files and produce:
 
 - 6-8 accomplishment bullets in review-ready language
 - Major initiatives grouped by theme
@@ -91,6 +94,9 @@ Paste the prompt into ChatGPT, Claude, or any AI tool. It will read the exported
 - Growth areas and missing context
 
 ### Enrich with context files (optional)
+
+> [!TIP]
+> For best results, provide at least `role.md` and `goals.md`. Without them, the agent generates generic accomplishment bullets instead of aligning to your actual role expectations and objectives.
 
 Drop these files into `~/Library/Application Support/BragBot/data/context/` to improve the output:
 
