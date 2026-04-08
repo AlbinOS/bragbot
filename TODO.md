@@ -13,3 +13,10 @@ Parse conventional comment tags from comments **received** on authored PRs (`rev
   - Praise on large/complex PRs (more impressive context)
 - Dashboard chart: "Praise Wall" or "Best Compliments" — show top 5-10 praise quotes with reviewer name and PR link
 - Dashboard chart: inbound feedback tag breakdown (mirror of the outbound one)
+
+## Export Preview
+
+Before copying the brag prompt, show a summary of what will be exported:
+- Page count, initiative count, date range
+- Which context files are detected
+- Gives confidence the data is fresh before pasting into an AI tool
