@@ -372,6 +372,9 @@ const mainviewRPC = BrowserView.defineRPC({
       },
       "updater:download": async () => {
         try {
+          Updater.onStatusChange((entry) => {
+            try { (mainviewRPC as any).send("updater:status", entry); } catch {}
+          });
           await Updater.downloadUpdate();
           return { ok: true };
         } catch (e: any) {
