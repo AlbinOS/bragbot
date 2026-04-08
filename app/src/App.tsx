@@ -68,6 +68,8 @@ import { SizeVsMergeChart } from "./SizeVsMergeChart";
 import JiraDashboard from "./jira/JiraDashboard";
 import ConfluenceDashboard from "./confluence/ConfluenceDashboard";
 import { getJiraData as loadJiraData } from "./jira/data";
+import { getConfluenceData as loadConfluenceData } from "./confluence/data";
+import { buildConfluenceDerived } from "./confluence/exportConfluence";
 import { StatCard, Section, LogPanel } from "./shared/components";
 
 const COLORS = ["#339af0", "#51cf66", "#fcc419", "#ff6b6b", "#cc5de8", "#20c997", "#ff922b"];
@@ -564,6 +566,7 @@ export default function App() {
             <MTooltip label="Generate metrics from crawled data and copy a brag-sheet prompt to clipboard" position="bottom" withArrow>
               <Button size="xs" variant="subtle" color={copyFeedback ? "green" : "gray"} className="hover-gray-outline-blue-text" onClick={async () => {
                 const jiraData = await loadJiraData();
+                const confluenceData = await loadConfluenceData();
                 if (!hasData) {
                   setLogs([`No GitHub data yet — starting crawl. Click Export again when done.`]);
                   setLogsOpen(true);
@@ -574,6 +577,11 @@ export default function App() {
                 const result = await exportAIContext(markdown);
                 await exportAIContext(JSON.stringify(metrics, null, 2), result.path.replace("ai-context.md", "derived-metrics.json"));
                 await exportAIContext(JSON.stringify({ initiatives, notable_singletons, role_alignment }, null, 2), result.path.replace("ai-context.md", "initiatives.json"));
+
+                const confluenceDerived = confluenceData?.pages?.length ? buildConfluenceDerived(confluenceData, initiatives) : null;
+                if (confluenceDerived) {
+                  await exportAIContext(JSON.stringify(confluenceDerived, null, 2), result.path.replace("ai-context.md", "confluence-derived.json"));
+                }
 
                 // Create context dir with README on first export
                 const contextDir = result.path.replace("/ai-context.md", "/context");
@@ -615,6 +623,7 @@ Example entries:
 | \`derived-metrics.json\` | Pre-computed metrics (authoritative numbers) |
 | \`initiatives.json\` | Initiative clusters, notable singletons, and role alignment |
 | \`ai-context.md\` | Full PR/Jira evidence with derived metrics summary |
+| \`confluence-derived.json\` | Confluence threads, linked initiatives, role signals (if connected) |
 
 ## Context (optional, user-provided)
 
@@ -642,14 +651,17 @@ Paste the prompt from the app's "Export for AI" button into your AI tool, or poi
                   if (ctx.found.includes("role_target.md")) contextLines.push(`- Read ${ctx.dir}/role_target.md and identify promotion signals toward the next role.`);
                   if (ctx.found.includes("goals.md")) contextLines.push(`- Read ${ctx.dir}/goals.md and map activity to stated goals/OKRs.`);
                   if (ctx.found.includes("notes.md")) contextLines.push(`- Read ${ctx.dir}/notes.md for outcome/impact context the data can't show.`);
-                  if (ctx.found.length === 0) contextLines.push(`- No context files found. Optionally add role.md, goals.md, or notes.md to ${ctx.dir}/ (see README.md there).`);
+                  if (ctx.found.length === 0) contextLines.push(`- No context files found. Optionally add role.md, role_target.md, goals.md, or notes.md to ${ctx.dir}/ (see README.md there).`);
+
+                  const confluencePath = confluenceDerived ? result.path.replace("ai-context.md", "confluence-derived.json") : null;
+                  const confluenceSource = confluencePath ? `\n4. ${confluencePath} — Confluence threads with linked initiatives, role signals (covers ${confluenceDerived!.coverage.since} to ${confluenceDerived!.coverage.until})` : "";
 
                   const prompt = `You are helping a Senior Software Engineer prepare an evidence-based brag sheet.
 
 Primary sources (read in this order):
 1. ${metricsPath} — pre-computed metrics, quote from here
 2. ${initiativesPath} — initiatives, notable singletons, and auto-detected role alignment
-3. ${result.path} — full PR/Jira evidence
+3. ${result.path} — full PR/Jira evidence${confluenceSource}
 
 Rules:
 - Treat derived metrics as authoritative; do not re-derive from raw data.
@@ -661,7 +673,13 @@ Rules:
 - Do not clone repos unless extracted evidence is insufficient for top initiatives.
 - Do not say "led", "owned", "zero incidents", "reduced", "improved", or "mentored" unless directly supported by evidence or explicitly marked as inference.
 - Do not use open or draft PRs as evidence of delivery — only merged PRs count as shipped.
-- Every accomplishment bullet must cite supporting initiative IDs or PR numbers.
+- Every accomplishment bullet must cite supporting initiative IDs or PR numbers.${confluenceDerived ? `
+- Use Confluence evidence to support claims about design leadership, documentation, architecture, technical community influence, and process improvement.
+- Prefer official-space pages over personal-space drafts. Collapse related pages into one documentation thread (already done in the data).
+- Do not treat a Confluence page title alone as proof that a design shipped or was accepted.
+- Only use Confluence to reinforce accomplishment bullets when linked to shipped initiatives or merged PRs.
+- Use comment_count and comments_given as engagement signals, not outcome metrics.
+- Confluence coverage is ${confluenceDerived.coverage.since} to ${confluenceDerived.coverage.until} — do not assume absence of documentation outside this window.` : ""}
 ${contextLines.join("\n")}
 
 Produce:
@@ -669,8 +687,9 @@ Produce:
 2. Major initiatives grouped by theme
 3. Key metrics with short interpretation
 4. Collaboration and mentorship signals
-5. Growth areas / focus shifts
-6. Missing context / uncertain claims`;
+5. Design, documentation, and technical influence (if Confluence data present)
+6. Growth areas / focus shifts
+7. Missing context / uncertain claims`;
                   try {
                     await writeClipboard(prompt);
                     setCopyFeedback(true);
