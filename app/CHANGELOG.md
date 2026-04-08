@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.4](https://github.com/AlbinOS/bragbot/compare/bragbot-v1.0.3...bragbot-v1.0.4) (2026-04-08)
+
+
+### Bug Fixes
+
+* check for updates every hour and on version click ([#11](https://github.com/AlbinOS/bragbot/issues/11)) ([a60c30d](https://github.com/AlbinOS/bragbot/commit/a60c30d1d0b8da582e6f376c5c107530fef0cdb8))
+* make jira data optional for export ([#13](https://github.com/AlbinOS/bragbot/issues/13)) ([8c4272a](https://github.com/AlbinOS/bragbot/commit/8c4272a6feffaed1eee617cdf3c26df31c6d1256))
+
 ## [1.0.3](https://github.com/AlbinOS/bragbot/compare/bragbot-v1.0.2...bragbot-v1.0.3) (2026-04-08)
 
 
