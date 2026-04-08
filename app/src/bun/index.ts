@@ -135,10 +135,12 @@ const mainviewRPC = BrowserView.defineRPC({
         return { success: true, user };
       },
       "auth:detectGhCli": async () => {
+        const env = { ...process.env, PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin` };
         try {
-          const which = Bun.spawnSync(["which", "gh"]);
+          const which = Bun.spawnSync(["which", "gh"], { env });
           if (which.exitCode !== 0) return { available: false, reason: "gh not installed" };
-          const token = Bun.spawnSync(["gh", "auth", "token"]);
+          const ghPath = which.stdout.toString().trim();
+          const token = Bun.spawnSync([ghPath, "auth", "token"], { env });
           if (token.exitCode !== 0) return { available: false, reason: "gh not authenticated" };
           const t = token.stdout.toString().trim();
           const user = await validateToken(t);
@@ -147,7 +149,8 @@ const mainviewRPC = BrowserView.defineRPC({
         } catch { return { available: false, reason: "Failed to detect gh" }; }
       },
       "auth:loginWithGhCli": async () => {
-        const token = Bun.spawnSync(["gh", "auth", "token"]);
+        const env = { ...process.env, PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin` };
+        const token = Bun.spawnSync(["gh", "auth", "token"], { env });
         if (token.exitCode !== 0) return { success: false, error: "gh auth token failed" };
         const t = token.stdout.toString().trim();
         const user = await validateToken(t);
