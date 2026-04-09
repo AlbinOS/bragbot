@@ -134,11 +134,12 @@ export default function JiraDashboard({ filterSince, filterUntil, crawlRequested
           <TextInput label="Email" placeholder="you@company.com" size="sm" value={email} onChange={(e) => setEmail(e.currentTarget.value)} />
           <TextInput label="API Token" type="password" size="sm" value={token} onChange={(e) => setToken(e.currentTarget.value)} />
           {authError && <Text c="red" size="sm">{authError}</Text>}
-          <Button onClick={handleAuth} disabled={!email || !token || !site}>Connect</Button>
+          <Button className="hover-outline" mt="xl" onClick={handleAuth} disabled={!email || !token || !site}>Connect</Button>
           {envInfo && (
             <Button
               variant="subtle"
               color={envInfo.available ? "green" : "gray"}
+              className="hover-gray-outline-green-text"
               size="sm"
               disabled={!envInfo.available}
               onClick={async () => {
