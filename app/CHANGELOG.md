@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.3](https://github.com/AlbinOS/bragbot/compare/bragbot-v1.1.2...bragbot-v1.1.3) (2026-04-09)
+
+
+### Bug Fixes
+
+* align Jira connect and env button styles with GitHub login ([#27](https://github.com/AlbinOS/bragbot/issues/27)) ([d7ed073](https://github.com/AlbinOS/bragbot/commit/d7ed0733e98428c5945c8eb7d011c69de166d567))
+
 ## [1.1.2](https://github.com/AlbinOS/bragbot/compare/bragbot-v1.1.1...bragbot-v1.1.2) (2026-04-09)
 
 
