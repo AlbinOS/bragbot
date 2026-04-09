@@ -20,6 +20,10 @@ export function onConfluenceCrawlLog(cb: (msg: string) => void) {
   getRpc().addMessageListener("confluence:crawl:log", (payload: any) => cb(payload.msg));
 }
 
+export function onConfluenceCrawlProgress(cb: (current: number, total: number) => void) {
+  getRpc().addMessageListener("confluence:crawl:progress", (payload: any) => cb(payload.current, payload.total));
+}
+
 export function onConfluenceCrawlDone(cb: (result: { success: boolean; error?: string }) => void) {
   getRpc().addMessageListener("confluence:crawl:done", (result: any) => cb(result));
 }

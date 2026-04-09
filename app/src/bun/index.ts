@@ -229,6 +229,9 @@ const mainviewRPC = BrowserView.defineRPC({
           onRepoComplete: (repo) => {
             try { (mainviewRPC as any).send("crawl:repoComplete", { repo }); } catch {}
           },
+          onProgress: (current: number, total: number) => {
+            try { (mainviewRPC as any).send("crawl:progress", { current, total }); } catch {}
+          },
         })
           .then(() => {
             try { (mainviewRPC as any).send("crawl:done", { success: true }); } catch {}
@@ -314,6 +317,7 @@ const mainviewRPC = BrowserView.defineRPC({
         crawlJira({ since, until }, JIRA_DATA_DIR,
           (msg) => { try { (mainviewRPC as any).send("jira:crawl:log", { msg }); } catch {} },
           signal,
+          (current, total) => { try { (mainviewRPC as any).send("jira:crawl:progress", { current, total }); } catch {} },
         )
           .then(() => { try { (mainviewRPC as any).send("jira:crawl:done", { success: true }); } catch {} })
           .catch((err) => {
@@ -347,6 +351,7 @@ const mainviewRPC = BrowserView.defineRPC({
         crawlConfluence({ since, until }, CONFLUENCE_DATA_DIR,
           (msg) => { try { (mainviewRPC as any).send("confluence:crawl:log", { msg }); } catch {} },
           signal,
+          (current, total) => { try { (mainviewRPC as any).send("confluence:crawl:progress", { current, total }); } catch {} },
         )
           .then(() => { try { (mainviewRPC as any).send("confluence:crawl:done", { success: true }); } catch {} })
           .catch((err) => {

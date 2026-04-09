@@ -19,6 +19,7 @@ import {
   TextInput,
   Select,
   Tooltip as MTooltip,
+  Progress,
 } from "@mantine/core";
 import {
   BarChart,
@@ -38,7 +39,7 @@ import {
   Line,
 } from "recharts";
 import type { Meta, RepoData } from "./types";
-import { loadMeta, loadAllRepos, startCrawl, stopCrawl, getCrawlStatus, onCrawlLog, onCrawlRepoComplete, onCrawlDone, getAuthStatus, startDeviceFlow, onAuthComplete, onAuthExpired, logout, loginWithPat, getOrgs, detectGhCli, loginWithGhCli, exportAIContext, getContextFiles, checkForUpdate, downloadUpdate, applyUpdate, getLocalInfo, writeClipboard, getReviewSignatures, onUpdaterStatus } from "./data";
+import { loadMeta, loadAllRepos, startCrawl, stopCrawl, getCrawlStatus, onCrawlLog, onCrawlRepoComplete, onCrawlDone, onCrawlProgress, getAuthStatus, startDeviceFlow, onAuthComplete, onAuthExpired, logout, loginWithPat, getOrgs, detectGhCli, loginWithGhCli, exportAIContext, getContextFiles, checkForUpdate, downloadUpdate, applyUpdate, getLocalInfo, writeClipboard, getReviewSignatures, onUpdaterStatus } from "./data";
 
 // Mantine 7.x CSS — loaded by electrobun bundler
 import "@mantine/core/styles.css";
@@ -112,6 +113,7 @@ export default function App() {
   const [logs, setLogs] = useState<string[]>([]);
   const [logsOpen, setLogsOpen] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
+  const [crawlProgress, setCrawlProgress] = useState<{ current: number; total: number } | null>(null);
   const [filterSince, setFilterSince] = useState<string>("");
   const [filterUntil, setFilterUntil] = useState<string>("");
   const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -185,8 +187,10 @@ export default function App() {
       if (reloadTimer.current) clearTimeout(reloadTimer.current);
       reloadTimer.current = setTimeout(() => reloadData(), 2000);
     });
+    onCrawlProgress((current, total) => setCrawlProgress({ current, total }));
     onCrawlDone((result) => {
       setCrawling(false);
+      setCrawlProgress(null);
       reloadData();
       if (!result.success) {
         setLogs((prev) => [...prev, result.error ?? "Unknown error"]);
@@ -228,12 +232,14 @@ export default function App() {
     if (!force && meta && filterSince >= meta.since && filterUntil <= meta.until) {
       setLogs(["All data already available for this range."]);
       setLogsOpen(true);
+      setCrawlProgress(null);
       return;
     }
 
     setLogs([]);
     setLogsOpen(true);
     setCrawling(true);
+    setCrawlProgress({ current: 0, total: 0 });
     await startCrawl({ org, since: filterSince, until: filterUntil, force });
   };
 
@@ -411,6 +417,7 @@ export default function App() {
         <Container size="sm" py="xl">
           <Stack align="center" gap="lg" mt={100}>
             <Title order={1}>BragBot</Title>
+            {appVersion && <Text size="xs" c="dimmed">v{appVersion}</Text>}
             <Text c="dimmed" ta="center">No data found. Pick an organization and date range to start.</Text>
             <Select
               label="Organization"
@@ -440,6 +447,7 @@ export default function App() {
             )}
             <Button
               size="lg"
+              className="hover-outline"
               color={crawling ? "red" : "blue"}
               disabled={!org && !crawling}
               onClick={() => handleCrawl(false)}
@@ -447,10 +455,17 @@ export default function App() {
               {crawling ? "⏹ Stop" : "Start Crawling"}
             </Button>
             <Collapse in={(logsOpen || logs.length > 0) && activeTab === "github"} style={{ width: "100%" }}>
+              {crawlProgress && (
+                <Stack gap={4} w="100%">
+                  <Progress value={crawlProgress.total ? (crawlProgress.current / crawlProgress.total) * 100 : 100} size="sm" radius="xl" animated />
+                  <Text size="xs" c="dimmed" ta="center">{crawlProgress.total ? `Enriching PRs: ${crawlProgress.current}/${crawlProgress.total} (${Math.round((crawlProgress.current / crawlProgress.total) * 100)}%)` : "Starting..."}</Text>
+                </Stack>
+              )}
               <Paper p="xs" radius="md" withBorder mt="sm" style={{ maxHeight: 300, overflow: "hidden" }}>
                 <LogPanel logs={logs} height={280} />
               </Paper>
             </Collapse>
+            <Button size="xs" variant="subtle" color="gray" onClick={handleLogout}>Sign out</Button>
           </Stack>
         </Container>
       </MantineProvider>
@@ -705,12 +720,12 @@ Produce:
           </Group>
         </Group>
 
-        {activeTab === "jira" && (
+        <div style={{ display: activeTab === "jira" ? "block" : "none" }}>
           <JiraDashboard filterSince={filterSince} filterUntil={filterUntil} crawlRequested={jiraCrawlRequested} onAuthChange={setJiraAuth} />
-        )}
-        {activeTab === "confluence" && (
+        </div>
+        <div style={{ display: activeTab === "confluence" ? "block" : "none" }}>
           <ConfluenceDashboard filterSince={filterSince} filterUntil={filterUntil} crawlRequested={confluenceCrawlRequested} atlassianAuthed={jiraAuth.authenticated} />
-        )}
+        </div>
         {activeTab === "github" && (<>
 
         {(filterSince < meta.since || filterUntil > meta.until) && (() => {
@@ -725,7 +740,7 @@ Produce:
           );
         })()}
 
-        {logs.length > 0 && (
+        {(logs.length > 0 || logsOpen) && (
           <>
             <Group justify="center" mt="sm">
               <Button size="xs" variant="subtle" color="gray" className="hover-gray-outline-blue-text" onClick={() => setLogsOpen((o) => !o)}>
@@ -733,6 +748,12 @@ Produce:
               </Button>
             </Group>
             <Collapse in={logsOpen}>
+              {crawlProgress && (
+                <Stack gap={4} mt="xs">
+                  <Progress value={crawlProgress.total ? (crawlProgress.current / crawlProgress.total) * 100 : 100} size="sm" radius="xl" animated />
+                  <Text size="xs" c="dimmed" ta="center">{crawlProgress.total ? `Enriching PRs: ${crawlProgress.current}/${crawlProgress.total} (${Math.round((crawlProgress.current / crawlProgress.total) * 100)}%)` : "Starting..."}</Text>
+                </Stack>
+              )}
               <Paper p="xs" radius="md" withBorder mt="xs" style={{ maxHeight: 200, overflow: "hidden" }}>
                 <LogPanel logs={logs} />
               </Paper>
