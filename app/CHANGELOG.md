@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/AlbinOS/bragbot/compare/bragbot-v1.1.1...bragbot-v1.1.2) (2026-04-09)
+
+
+### Bug Fixes
+
+* trigger release build ([780668c](https://github.com/AlbinOS/bragbot/commit/780668cee7c84131da8f0dd48209c19f334c62f9))
+
 ## [1.1.1](https://github.com/AlbinOS/bragbot/compare/bragbot-v1.1.0...bragbot-v1.1.1) (2026-04-09)
 
 
