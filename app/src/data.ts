@@ -32,6 +32,10 @@ export async function loginWithGhCli(): Promise<{ success: boolean; user?: strin
   return getRpc().request["auth:loginWithGhCli"]();
 }
 
+export async function locateGhCli(): Promise<{ success: boolean; user?: string; token?: string; error?: string }> {
+  return getRpc().request["auth:locateGhCli"]();
+}
+
 export async function getOrgs(): Promise<string[]> {
   return getRpc().request["auth:getOrgs"]();
 }

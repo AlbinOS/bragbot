@@ -19,6 +19,7 @@ import {
   TextInput,
   Select,
   Tooltip as MTooltip,
+  Anchor,
   Progress,
 } from "@mantine/core";
 import {
@@ -39,7 +40,7 @@ import {
   Line,
 } from "recharts";
 import type { Meta, RepoData } from "./types";
-import { loadMeta, loadAllRepos, startCrawl, stopCrawl, getCrawlStatus, onCrawlLog, onCrawlRepoComplete, onCrawlDone, onCrawlProgress, getAuthStatus, startDeviceFlow, onAuthComplete, onAuthExpired, logout, loginWithPat, getOrgs, detectGhCli, loginWithGhCli, exportAIContext, getContextFiles, checkForUpdate, downloadUpdate, applyUpdate, getLocalInfo, writeClipboard, getReviewSignatures, onUpdaterStatus } from "./data";
+import { loadMeta, loadAllRepos, startCrawl, stopCrawl, getCrawlStatus, onCrawlLog, onCrawlRepoComplete, onCrawlDone, onCrawlProgress, getAuthStatus, startDeviceFlow, onAuthComplete, onAuthExpired, logout, loginWithPat, getOrgs, detectGhCli, loginWithGhCli, locateGhCli, exportAIContext, getContextFiles, checkForUpdate, downloadUpdate, applyUpdate, getLocalInfo, writeClipboard, getReviewSignatures, onUpdaterStatus } from "./data";
 
 // Mantine 7.x CSS — loaded by electrobun bundler
 import "@mantine/core/styles.css";
@@ -339,16 +340,11 @@ export default function App() {
               </Paper>
             ) : (
               <Stack align="center" gap="sm">
-                {/* OAuth device flow disabled for now — keeping code for future use */}
-                {/* <Button size="lg" onClick={handleLogin}>Sign in with GitHub</Button> */}
-                <Button size="lg" className="hover-outline" onClick={() => setShowPat(true)}>Sign in with a Personal Access Token</Button>
-                {ghCli && (
+                {ghCli?.available && (
                   <Button
-                    variant="subtle"
-                    color={ghCli.available ? "green" : "gray"}
-                    className="hover-gray-outline-green-text"
-                    size="sm"
-                    disabled={!ghCli.available}
+                    size="lg"
+                    color="green"
+                    className="hover-outline"
                     onClick={async () => {
                       const result = await loginWithGhCli();
                       if (result.success) {
@@ -359,9 +355,27 @@ export default function App() {
                       }
                     }}
                   >
-                    {ghCli.available ? `Use existing gh login (${ghCli.user})` : `GitHub CLI: ${ghCli.reason}`}
+                    Continue as {ghCli.user}
                   </Button>
                 )}
+                {ghCli?.available && <Text size="xs" c="dimmed">via GitHub CLI</Text>}
+                {ghCli?.available && <Text size="xs" c="dimmed" mt="xs">— or —</Text>}
+                <Button size={ghCli?.available ? "xs" : "lg"} variant={ghCli?.available ? "subtle" : "filled"} color={ghCli?.available ? "gray" : "blue"} className={ghCli?.available ? "hover-gray-outline-blue-text" : "hover-outline"} onClick={() => setShowPat(true)}>Sign in with a Personal Access Token</Button>
+                {!ghCli?.available && (<>
+                  <Text size="xs" c="dimmed" mt="xs">— or —</Text>
+                  <Text size="xs" c="dimmed">💡 Install <Anchor href="https://cli.github.com" target="_blank" size="xs" c="#339af0">GitHub CLI</Anchor> for one-click sign in</Text>
+                  <Text size="xs" c="dimmed" mt={4} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Already installed? <Button variant="subtle" color="gray" className="hover-gray-outline-blue-text" size="compact-xs" style={{ fontSize: "var(--mantine-font-size-xs)" }} onClick={async () => {
+                    const result = await locateGhCli();
+                    if (result.success) {
+                      setAuthed(true);
+                      if (result.user) setAuthUser(result.user);
+                      getOrgs().then(setOrgs);
+                      reloadData().then(() => setLoading(false));
+                    } else {
+                      detectGhCli().then(setGhCli);
+                    }
+                  }}>Locate it!</Button></Text>
+                </>)}
               </Stack>
             )}
           </Stack>

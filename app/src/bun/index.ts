@@ -18,7 +18,39 @@ const DEFAULT_DATA_DIR = debug
   ? path.join(os.tmpdir(), `bragbot-${Date.now()}`, "data")
   : path.join(os.homedir(), "Library/Application Support/BragBot/data");
 
-const GITHUB_DATA_DIR = path.join(DEFAULT_DATA_DIR, "github");
+const HOME = os.homedir();
+const GH_EXTRA_PATHS = [
+  "/opt/homebrew/bin",
+  "/usr/local/bin",
+  "/opt/local/bin",                              // MacPorts
+  `${HOME}/.local/bin`,                          // Webi, pip
+  `${HOME}/.local/share/mise/shims`,             // mise
+  `${HOME}/.asdf/shims`,                         // asdf
+  `${HOME}/miniconda3/bin`,                      // Conda
+  `${HOME}/anaconda3/bin`,
+  `${HOME}/miniforge3/bin`,
+  `${HOME}/.nix-profile/bin`,                    // Nix
+  "/nix/var/nix/profiles/default/bin",
+].join(":");
+
+function ghEnv(customPath?: string) {
+  const extra = customPath ? path.dirname(customPath) + ":" : "";
+  return { ...process.env, PATH: `${extra}${process.env.PATH}:${GH_EXTRA_PATHS}` };
+}
+
+const GH_CUSTOM_PATH_FILE = path.join(DEFAULT_DATA_DIR, "gh-path.txt");
+
+function loadCustomGhPath(): string | undefined {
+  try { return fs.readFileSync(GH_CUSTOM_PATH_FILE, "utf-8").trim() || undefined; } catch { return undefined; }
+}
+
+function saveCustomGhPath(p: string) {
+  fs.mkdirSync(path.dirname(GH_CUSTOM_PATH_FILE), { recursive: true });
+  fs.writeFileSync(GH_CUSTOM_PATH_FILE, p);
+}
+
+const GITHUB_DATA_DIR
+ = path.join(DEFAULT_DATA_DIR, "github");
 const JIRA_DATA_DIR = path.join(DEFAULT_DATA_DIR, "jira");
 const CONFLUENCE_DATA_DIR = path.join(DEFAULT_DATA_DIR, "confluence");
 const REVIEW_SIGNATURES_PATH = path.join(os.homedir(), "Library", "Application Support", "BragBot", "review-signatures.json");
@@ -135,11 +167,15 @@ const mainviewRPC = BrowserView.defineRPC({
         return { success: true, user };
       },
       "auth:detectGhCli": async () => {
-        const env = { ...process.env, PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin` };
+        const customPath = loadCustomGhPath();
+        const env = ghEnv(customPath);
         try {
-          const which = Bun.spawnSync(["which", "gh"], { env });
-          if (which.exitCode !== 0) return { available: false, reason: "gh not installed" };
-          const ghPath = which.stdout.toString().trim();
+          let ghPath = customPath;
+          if (!ghPath) {
+            const which = Bun.spawnSync(["which", "gh"], { env });
+            if (which.exitCode !== 0) return { available: false, reason: "gh not installed" };
+            ghPath = which.stdout.toString().trim();
+          }
           const token = Bun.spawnSync([ghPath, "auth", "token"], { env });
           if (token.exitCode !== 0) return { available: false, reason: "gh not authenticated" };
           const t = token.stdout.toString().trim();
@@ -149,8 +185,10 @@ const mainviewRPC = BrowserView.defineRPC({
         } catch { return { available: false, reason: "Failed to detect gh" }; }
       },
       "auth:loginWithGhCli": async () => {
-        const env = { ...process.env, PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin` };
-        const token = Bun.spawnSync(["gh", "auth", "token"], { env });
+        const customPath = loadCustomGhPath();
+        const env = ghEnv(customPath);
+        const ghBin = customPath || "gh";
+        const token = Bun.spawnSync([ghBin, "auth", "token"], { env });
         if (token.exitCode !== 0) return { success: false, error: "gh auth token failed" };
         const t = token.stdout.toString().trim();
         const user = await validateToken(t);
@@ -158,6 +196,24 @@ const mainviewRPC = BrowserView.defineRPC({
         saveTokenDirect(t);
         setToken(t);
         return { success: true, user };
+      },
+      "auth:locateGhCli": async () => {
+        const files = await Utils.openFileDialog({
+          startingFolder: "/usr/local/bin",
+          canChooseFiles: true,
+          canChooseDirectory: false,
+          allowsMultipleSelection: false,
+        });
+        const ghPath = files?.[0];
+        if (!ghPath || !ghPath.endsWith("/gh")) return { success: false, error: "Not a gh binary" };
+        const env = ghEnv(ghPath);
+        const token = Bun.spawnSync([ghPath, "auth", "token"], { env });
+        if (token.exitCode !== 0) return { success: false, error: "gh found but not authenticated — run 'gh auth login' first" };
+        const t = token.stdout.toString().trim();
+        const user = await validateToken(t);
+        if (!user) return { success: false, error: "gh token invalid or missing scopes" };
+        saveCustomGhPath(ghPath);
+        return { success: true, user, token: t };
       },
       "auth:getOrgs": async () => {
         const { apiFetch } = await import("./crawler/github");
