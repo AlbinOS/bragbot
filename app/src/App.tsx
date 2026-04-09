@@ -40,7 +40,7 @@ import {
   Line,
 } from "recharts";
 import type { Meta, RepoData } from "./types";
-import { loadMeta, loadAllRepos, startCrawl, stopCrawl, getCrawlStatus, onCrawlLog, onCrawlRepoComplete, onCrawlDone, onCrawlProgress, getAuthStatus, startDeviceFlow, onAuthComplete, onAuthExpired, logout, loginWithPat, getOrgs, detectGhCli, loginWithGhCli, exportAIContext, getContextFiles, checkForUpdate, downloadUpdate, applyUpdate, getLocalInfo, writeClipboard, getReviewSignatures, onUpdaterStatus } from "./data";
+import { loadMeta, loadAllRepos, startCrawl, stopCrawl, getCrawlStatus, onCrawlLog, onCrawlRepoComplete, onCrawlDone, onCrawlProgress, getAuthStatus, startDeviceFlow, onAuthComplete, onAuthExpired, logout, loginWithPat, getOrgs, detectGhCli, loginWithGhCli, locateGhCli, exportAIContext, getContextFiles, checkForUpdate, downloadUpdate, applyUpdate, getLocalInfo, writeClipboard, getReviewSignatures, onUpdaterStatus } from "./data";
 
 // Mantine 7.x CSS — loaded by electrobun bundler
 import "@mantine/core/styles.css";
@@ -363,7 +363,18 @@ export default function App() {
                 <Button size={ghCli?.available ? "xs" : "lg"} variant={ghCli?.available ? "subtle" : "filled"} color={ghCli?.available ? "gray" : "blue"} className={ghCli?.available ? "hover-gray-outline-blue-text" : "hover-outline"} onClick={() => setShowPat(true)}>Sign in with a Personal Access Token</Button>
                 {!ghCli?.available && (<>
                   <Text size="xs" c="dimmed" mt="xs">— or —</Text>
-                  <Text size="xs" c="dimmed">💡 Install <Anchor href="https://cli.github.com" target="_blank" size="xs">gh CLI</Anchor> for one-click sign in</Text>
+                  <Text size="xs" c="dimmed">💡 Install <Anchor href="https://cli.github.com" target="_blank" size="xs" c="#339af0">GitHub CLI</Anchor> for one-click sign in</Text>
+                  <Text size="xs" c="dimmed" mt={4} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Already installed? <Button variant="subtle" color="gray" className="hover-gray-outline-blue-text" size="compact-xs" style={{ fontSize: "var(--mantine-font-size-xs)" }} onClick={async () => {
+                    const result = await locateGhCli();
+                    if (result.success) {
+                      setAuthed(true);
+                      if (result.user) setAuthUser(result.user);
+                      getOrgs().then(setOrgs);
+                      reloadData().then(() => setLoading(false));
+                    } else {
+                      detectGhCli().then(setGhCli);
+                    }
+                  }}>Locate it!</Button></Text>
                 </>)}
               </Stack>
             )}
