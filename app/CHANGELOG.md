@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/AlbinOS/bragbot/compare/bragbot-v1.1.0...bragbot-v1.1.1) (2026-04-09)
+
+
+### Bug Fixes
+
+* add request timeouts, network retries, progress bar, and version to empty state ([#22](https://github.com/AlbinOS/bragbot/issues/22)) ([93bf50c](https://github.com/AlbinOS/bragbot/commit/93bf50c884172951d894d24b46b0f9ad98b7bb1f))
+
 ## [1.1.0](https://github.com/AlbinOS/bragbot/compare/bragbot-v1.0.5...bragbot-v1.1.0) (2026-04-08)
 
 
