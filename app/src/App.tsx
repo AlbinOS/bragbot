@@ -19,6 +19,7 @@ import {
   TextInput,
   Select,
   Tooltip as MTooltip,
+  Anchor,
   Progress,
 } from "@mantine/core";
 import {
@@ -339,16 +340,11 @@ export default function App() {
               </Paper>
             ) : (
               <Stack align="center" gap="sm">
-                {/* OAuth device flow disabled for now — keeping code for future use */}
-                {/* <Button size="lg" onClick={handleLogin}>Sign in with GitHub</Button> */}
-                <Button size="lg" className="hover-outline" onClick={() => setShowPat(true)}>Sign in with a Personal Access Token</Button>
-                {ghCli && (
+                {ghCli?.available && (
                   <Button
-                    variant="subtle"
-                    color={ghCli.available ? "green" : "gray"}
-                    className="hover-gray-outline-green-text"
-                    size="sm"
-                    disabled={!ghCli.available}
+                    size="lg"
+                    color="green"
+                    className="hover-outline"
                     onClick={async () => {
                       const result = await loginWithGhCli();
                       if (result.success) {
@@ -359,9 +355,16 @@ export default function App() {
                       }
                     }}
                   >
-                    {ghCli.available ? `Use existing gh login (${ghCli.user})` : `GitHub CLI: ${ghCli.reason}`}
+                    Continue as {ghCli.user}
                   </Button>
                 )}
+                {ghCli?.available && <Text size="xs" c="dimmed">via GitHub CLI</Text>}
+                {ghCli?.available && <Text size="xs" c="dimmed" mt="xs">— or —</Text>}
+                <Button size={ghCli?.available ? "xs" : "lg"} variant={ghCli?.available ? "subtle" : "filled"} color={ghCli?.available ? "gray" : "blue"} className={ghCli?.available ? "hover-gray-outline-blue-text" : "hover-outline"} onClick={() => setShowPat(true)}>Sign in with a Personal Access Token</Button>
+                {!ghCli?.available && (<>
+                  <Text size="xs" c="dimmed" mt="xs">— or —</Text>
+                  <Text size="xs" c="dimmed">💡 Install <Anchor href="https://cli.github.com" target="_blank" size="xs">gh CLI</Anchor> for one-click sign in</Text>
+                </>)}
               </Stack>
             )}
           </Stack>
