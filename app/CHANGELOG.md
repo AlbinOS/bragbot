@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/AlbinOS/bragbot/compare/bragbot-v1.1.3...bragbot-v1.2.0) (2026-04-09)
+
+
+### Features
+
+* improve github cli login experience ([#29](https://github.com/AlbinOS/bragbot/issues/29)) ([1079cbd](https://github.com/AlbinOS/bragbot/commit/1079cbddd4c7d98706eccd33dc58dfe03e19db70))
+
 ## [1.1.3](https://github.com/AlbinOS/bragbot/compare/bragbot-v1.1.2...bragbot-v1.1.3) (2026-04-09)
 
 
